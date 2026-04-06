@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="AI뉴스" />
+  <meta name="theme-color" content="#0a0a0f" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <title>AI 뉴스피드</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --surface: #12121a;
+      --surface2: #1a1a26;
+      --border: rgba(255,255,255,0.07);
+      --accent-dev: #00e5ff;
+      --accent-ind: #ff6b6b;
+      --text-primary: #f0f0f8;
+      --text-secondary: #8888aa;
+      --text-muted: #44445a;
+      --card-glow-dev: rgba(0,229,255,0.08);
+      --card-glow-ind: rgba(255,107,107,0.08);
+      --safe-top: env(safe-area-inset-top, 44px);
+      --safe-bottom: env(safe-area-inset-bottom, 20px);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text-primary);
+      font-family: 'Noto Sans KR', sans-serif;
+      overflow: hidden;
+    }
+
+    /* ── APP SHELL ── */
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+      max-width: 430px;
+      margin: 0 auto;
+      position: relative;
+    }
+
+    /* ── HEADER ── */
+    header {
+      padding: calc(var(--safe-top) + 16px) 20px 0;
+      background: linear-gradient(to bottom, var(--bg) 70%, transparent);
+      position: relative;
+      z-index: 10;
+      flex-shrink: 0;
+    }
+
+    .header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--accent-dev), var(--accent-ind));
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Space Mono', monospace;
+      font-size: 13px;
+      font-weight: 700;
+      color: #0a0a0f;
+    }
+
+    .logo-text {
+      font-size: 17px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    .logo-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: 'Space Mono', monospace;
+    }
+
+    #refresh-btn {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-secondary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      transition: all 0.2s;
+      -webkit-appearance: none;
+    }
+
+    #refresh-btn:active { transform: scale(0.92); background: var(--surface2); }
+    #refresh-btn.spinning { animation: spin 1s linear infinite; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── DATE & LAST UPDATE ── */
+    .meta-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .date-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-family: 'Space Mono', monospace;
+    }
+
+    .updated-label {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* ── TABS ── */
+    .tabs {
+      display: flex;
+      gap: 0;
+      margin-top: 14px;
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 3px;
+      margin-bottom: 0;
+    }
+
+    .tab {
+      flex: 1;
+      padding: 9px 12px;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      font-family: 'Noto Sans KR', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      border-radius: 9px;
+      transition: all 0.25s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      -webkit-appearance: none;
+    }
+
+    .tab .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      opacity: 0.5;
+      transition: opacity 0.25s;
+    }
+
+    .tab.dev .dot { background: var(--accent-dev); }
+    .tab.ind .dot { background: var(--accent-ind); }
+
+    .tab.active {
+      color: var(--text-primary);
+      font-weight: 700;
+    }
+
+    .tab.active .dot { opacity: 1; }
+    .tab.dev.active { background: rgba(0,229,255,0.12); }
+    .tab.ind.active { background: rgba(255,107,107,0.12); }
+
+    /* ── SCROLL AREA ── */
+    #scroll-area {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+      padding: 16px 16px calc(var(--safe-bottom) + 16px);
+      scroll-behavior: smooth;
+    }
+
+    #scroll-area::-webkit-scrollbar { display: none; }
+
+    /* ── SECTION HEADER ── */
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+      padding: 0 4px;
+    }
+
+    .section-line {
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .section-label {
+      font-size: 11px;
+      font-family: 'Space Mono', monospace;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .dev-label { color: var(--accent-dev); }
+    .ind-label { color: var(--accent-ind); }
+
+    /* ── NEWS CARDS ── */
+    .news-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .news-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+      overflow: hidden;
+      text-decoration: none;
+      display: block;
+    }
+
+    .news-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 16px;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .news-card.dev::before { background: var(--card-glow-dev); }
+    .news-card.ind::before { background: var(--card-glow-ind); }
+    .news-card:active::before { opacity: 1; }
+    .news-card:active { transform: scale(0.98); }
+
+    .card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .card-num {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      min-width: 22px;
+      padding-top: 2px;
+    }
+
+    .card-num.dev-num { color: var(--accent-dev); opacity: 0.7; }
+    .card-num.ind-num { color: var(--accent-ind); opacity: 0.7; }
+
+    .card-title {
+      flex: 1;
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1.5;
+      color: var(--text-primary);
+      letter-spacing: -0.2px;
+    }
+
+    .card-body {
+      font-size: 12.5px;
+      line-height: 1.65;
+      color: var(--text-secondary);
+      margin-bottom: 10px;
+    }
+
+    .card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .card-source {
+      font-size: 11px;
+      font-family: 'Space Mono', monospace;
+      color: var(--text-muted);
+      background: var(--surface2);
+      padding: 3px 8px;
+      border-radius: 6px;
+    }
+
+    .card-tag {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-weight: 600;
+    }
+
+    .dev-tag { background: rgba(0,229,255,0.1); color: var(--accent-dev); }
+    .ind-tag { background: rgba(255,107,107,0.1); color: var(--accent-ind); }
+
+    .card-link-icon {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* ── LOADING STATE ── */
+    #loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      padding: 60px 20px;
+      min-height: 300px;
+    }
+
+    .loader-ring {
+      width: 48px;
+      height: 48px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent-dev);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    .loader-text {
+      font-size: 13px;
+      color: var(--text-muted);
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    .loader-dots span {
+      display: inline-block;
+      animation: blink 1.2s infinite;
+      font-size: 20px;
+      color: var(--accent-dev);
+    }
+
+    .loader-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .loader-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes blink {
+      0%, 80%, 100% { opacity: 0.1; }
+      40% { opacity: 1; }
+    }
+
+    /* ── ERROR STATE ── */
+    #error-state {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      padding: 60px 20px;
+      text-align: center;
+    }
+
+    .error-icon { font-size: 40px; }
+    .error-msg { font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
+
+    #retry-btn {
+      padding: 10px 24px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      color: var(--text-primary);
+      font-family: 'Noto Sans KR', sans-serif;
+      font-size: 13px;
+      cursor: pointer;
+      -webkit-appearance: none;
+    }
+
+    /* ── CARD REVEAL ANIMATION ── */
+    .news-card {
+      animation: cardIn 0.35s ease both;
+    }
+
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .news-card:nth-child(1) { animation-delay: 0.05s; }
+    .news-card:nth-child(2) { animation-delay: 0.10s; }
+    .news-card:nth-child(3) { animation-delay: 0.15s; }
+    .news-card:nth-child(4) { animation-delay: 0.20s; }
+    .news-card:nth-child(5) { animation-delay: 0.25s; }
+
+    /* ── BOTTOM HINT ── */
+    .bottom-hint {
+      text-align: center;
+      font-size: 11px;
+      color: var(--text-muted);
+      padding: 16px 0 4px;
+      font-family: 'Space Mono', monospace;
+    }
+
+    /* ── PANE TRANSITIONS ── */
+    .pane { display: none; }
+    .pane.active { display: block; }
+
+    /* ── INSTALL BANNER ── */
+    #install-banner {
+      display: none;
+      margin: 0 0 12px;
+      background: linear-gradient(135deg, rgba(0,229,255,0.12), rgba(255,107,107,0.12));
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px 14px;
+      gap: 10px;
+      align-items: center;
+    }
+
+    #install-banner.show { display: flex; }
+
+    .install-text {
+      flex: 1;
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    .install-text strong { color: var(--text-primary); font-size: 13px; }
+
+    #install-close {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 18px;
+      cursor: pointer;
+      line-height: 1;
+      -webkit-appearance: none;
+    }
+
+    /* ── CACHE INDICATOR ── */
+    .cache-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      background: rgba(255,200,0,0.1);
+      color: #ffcc00;
+      border-radius: 6px;
+      padding: 2px 7px;
+      font-family: 'Space Mono', monospace;
+    }
+
+    /* bg noise texture */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+      opacity: 0.025;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    #app { z-index: 1; }
+  </style>
+
+</head>
+<body>
+<div id="app">
+
+  <!-- HEADER -->
+
+  <header>
+    <div class="header-row">
+      <div class="logo">
+        <div class="logo-icon">AI</div>
+        <div>
+          <div class="logo-text">AI 뉴스피드</div>
+          <div class="logo-sub">for developers</div>
+        </div>
+      </div>
+      <button id="refresh-btn" title="새로고침">↻</button>
+    </div>
+
+```
+<div class="meta-row">
+  <span class="date-label" id="today-date">—</span>
+  <span class="updated-label" id="last-updated">—</span>
+</div>
+
+<!-- INSTALL HINT -->
+<div id="install-banner">
+  <span style="font-size:22px">📲</span>
+  <div class="install-text">
+    <strong>홈 화면에 추가하기</strong><br>
+    Safari → 공유버튼 → 홈 화면에 추가
+  </div>
+  <button id="install-close">×</button>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab dev active" data-tab="dev">
+    <span class="dot"></span>개발 동향
+  </button>
+  <button class="tab ind" data-tab="ind">
+    <span class="dot"></span>AI 산업
+  </button>
+</div>
+```
+
+  </header>
+
+  <!-- SCROLL AREA -->
+
+  <div id="scroll-area">
+
+```
+<!-- DEV PANE -->
+<div class="pane active" id="pane-dev">
+  <div class="section-header">
+    <div class="section-line"></div>
+    <span class="section-label dev-label">// dev trends</span>
+    <div class="section-line"></div>
+  </div>
+  <div class="news-list" id="list-dev">
+    <div id="loading-dev">
+      <div id="loading">
+        <div class="loader-ring"></div>
+        <div class="loader-text">AI가 최신 개발 동향을 수집 중입니다<br/>잠시만 기다려주세요</div>
+        <div class="loader-dots"><span>●</span><span>●</span><span>●</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="bottom-hint" id="hint-dev" style="display:none">— 5 articles fetched —</div>
+</div>
+
+<!-- IND PANE -->
+<div class="pane" id="pane-ind">
+  <div class="section-header">
+    <div class="section-line"></div>
+    <span class="section-label ind-label">// industry news</span>
+    <div class="section-line"></div>
+  </div>
+  <div class="news-list" id="list-ind">
+    <div id="loading-ind">
+      <div id="loading" style="display:none">
+        <div class="loader-ring" style="border-top-color: var(--accent-ind)"></div>
+        <div class="loader-text">AI 산업 최신 소식을 가져오는 중</div>
+        <div class="loader-dots"><span style="color:var(--accent-ind)">●</span><span style="color:var(--accent-ind)">●</span><span style="color:var(--accent-ind)">●</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="bottom-hint" id="hint-ind" style="display:none">— 5 articles fetched —</div>
+</div>
+```
+
+  </div>
+</div>
+
+<script>
+// ── SERVICE WORKER ──
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+
+// ── STATE ──
+const CACHE_KEY_DEV = 'ainews_dev_v2';
+const CACHE_KEY_IND = 'ainews_ind_v2';
+const CACHE_TS_KEY  = 'ainews_ts_v2';
+const CACHE_TTL     = 30 * 60 * 1000; // 30min
+
+let devArticles = null;
+let indArticles = null;
+let isLoadingDev = false;
+let isLoadingInd = false;
+
+// ── DATE ──
+function setDate() {
+  const d = new Date();
+  const days = ['일','월','화','수','목','금','토'];
+  document.getElementById('today-date').textContent =
+    `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} (${days[d.getDay()]})`;
+}
+
+function setUpdated(ts, fromCache) {
+  const d = ts ? new Date(ts) : new Date();
+  const t = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')} 업데이트`;
+  document.getElementById('last-updated').innerHTML =
+    fromCache ? `<span class="cache-badge">⚡ ${t}</span>` : `<span style="font-size:11px;color:var(--text-muted)">${t}</span>`;
+}
+
+// ── TABS ──
+document.querySelectorAll('.tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('pane-' + btn.dataset.tab).classList.add('active');
+    document.getElementById('scroll-area').scrollTop = 0;
+    // lazy load ind
+    if (btn.dataset.tab === 'ind' && !indArticles && !isLoadingInd) {
+      fetchNews('ind');
+    }
+  });
+});
+
+// ── INSTALL BANNER ──
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const isStandalone = window.navigator.standalone === true;
+const bannerDismissed = localStorage.getItem('install_dismissed');
+if (isIOS && !isStandalone && !bannerDismissed) {
+  document.getElementById('install-banner').classList.add('show');
+}
+document.getElementById('install-close').addEventListener('click', () => {
+  document.getElementById('install-banner').classList.remove('show');
+  localStorage.setItem('install_dismissed', '1');
+});
+
+// ── REFRESH ──
+document.getElementById('refresh-btn').addEventListener('click', () => {
+  localStorage.removeItem(CACHE_KEY_DEV);
+  localStorage.removeItem(CACHE_KEY_IND);
+  localStorage.removeItem(CACHE_TS_KEY);
+  devArticles = null;
+  indArticles = null;
+  document.getElementById('list-dev').innerHTML = getLoadingHTML('dev');
+  document.getElementById('list-ind').innerHTML = '';
+  document.getElementById('hint-dev').style.display = 'none';
+  document.getElementById('hint-ind').style.display = 'none';
+  fetchNews('dev');
+  const activeTab = document.querySelector('.tab.active').dataset.tab;
+  if (activeTab === 'ind') fetchNews('ind');
+});
+
+function getLoadingHTML(type) {
+  const color = type === 'dev' ? 'var(--accent-dev)' : 'var(--accent-ind)';
+  const msg = type === 'dev' ? 'AI 개발 동향을 수집 중...' : 'AI 산업 소식을 수집 중...';
+  return `<div style="display:flex;flex-direction:column;align-items:center;gap:20px;padding:60px 20px;min-height:280px">
+    <div style="width:44px;height:44px;border:2px solid rgba(255,255,255,0.07);border-top-color:${color};border-radius:50%;animation:spin 0.8s linear infinite"></div>
+    <div style="font-size:13px;color:var(--text-muted);text-align:center">${msg}</div>
+  </div>`;
+}
+
+// ── FETCH FROM CLAUDE API ──
+async function fetchNews(type) {
+  if (type === 'dev' && isLoadingDev) return;
+  if (type === 'ind' && isLoadingInd) return;
+
+  // check cache
+  const cacheKey = type === 'dev' ? CACHE_KEY_DEV : CACHE_KEY_IND;
+  const tsKey = CACHE_TS_KEY + '_' + type;
+  try {
+    const cached = localStorage.getItem(cacheKey);
+    const ts = parseInt(localStorage.getItem(tsKey) || '0');
+    if (cached && Date.now() - ts < CACHE_TTL) {
+      const articles = JSON.parse(cached);
+      if (type === 'dev') devArticles = articles;
+      else indArticles = articles;
+      renderArticles(type, articles, true, ts);
+      return;
+    }
+  } catch(e) {}
+
+  if (type === 'dev') isLoadingDev = true;
+  else isLoadingInd = true;
+
+  const btn = document.getElementById('refresh-btn');
+  btn.classList.add('spinning');
+
+  const today = new Date().toLocaleDateString('ko-KR', { year:'numeric', month:'long', day:'numeric' });
+
+  const systemPrompt = `You are a tech news analyst specializing in AI. Today is ${today}.
+Return ONLY a valid JSON array — no markdown, no code fences, no explanation.
+Each item must have exactly these fields:
+- "title": string (Korean, compelling headline, max 60 chars)
+- "summary": string (Korean, 2-3 sentence insight for developers, max 150 chars)  
+- "source": string (publication name, e.g. "TechCrunch", "The Verge", "arXiv")
+- "tag": string (short topic tag in Korean, max 8 chars, e.g. "LLM", "오픈소스", "GPU")
+- "url": string (plausible article URL — use real domain)`;
+
+  const userPrompt = type === 'dev'
+    ? `Give me exactly 5 of today's most important AI development & engineering news items for software developers. Focus on: new model releases, frameworks, open-source tools, research papers, APIs, benchmarks, and developer-relevant AI engineering news. Make titles and summaries feel like real Korean tech journalism. Return ONLY the JSON array.`
+    : `Give me exactly 5 of today's most important AI industry & business news items. Focus on: funding rounds, company strategies, regulations, product launches, partnerships, market trends, and big-picture AI industry developments. Make titles and summaries feel like real Korean tech journalism. Return ONLY the JSON array.`;
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userPrompt }],
+        tools: [{
+          type: 'web_search_20250305',
+          name: 'web_search'
+        }]
+      })
+    });
+
+    const data = await resp.json();
+
+    // extract text from content blocks (may include tool_use blocks from web search)
+    let rawText = '';
+    if (data.content) {
+      for (const block of data.content) {
+        if (block.type === 'text') rawText += block.text;
+      }
+    }
+
+    // parse JSON — strip any accidental fences
+    const clean = rawText.replace(/```json|```/g, '').trim();
+    const start = clean.indexOf('[');
+    const end = clean.lastIndexOf(']');
+    if (start === -1 || end === -1) throw new Error('No JSON array found');
+    const articles = JSON.parse(clean.slice(start, end + 1));
+
+    if (!Array.isArray(articles) || articles.length === 0) throw new Error('Empty result');
+
+    const now = Date.now();
+    try {
+      localStorage.setItem(cacheKey, JSON.stringify(articles));
+      localStorage.setItem(tsKey, String(now));
+    } catch(e) {}
+
+    if (type === 'dev') devArticles = articles;
+    else indArticles = articles;
+
+    renderArticles(type, articles, false, now);
+
+  } catch(err) {
+    renderError(type, err.message);
+  } finally {
+    if (type === 'dev') isLoadingDev = false;
+    else isLoadingInd = false;
+    btn.classList.remove('spinning');
+  }
+}
+
+// ── RENDER ──
+function renderArticles(type, articles, fromCache, ts) {
+  const listEl = document.getElementById('list-' + type);
+  const hintEl = document.getElementById('hint-' + type);
+  setUpdated(ts, fromCache);
+
+  listEl.innerHTML = articles.slice(0, 5).map((a, i) => {
+    const safeUrl = a.url && a.url.startsWith('http') ? a.url : '#';
+    const tagClass = type === 'dev' ? 'dev-tag' : 'ind-tag';
+    const numClass = type === 'dev' ? 'dev-num' : 'ind-num';
+    return `
+    <a class="news-card ${type}" href="${safeUrl}" target="_blank" rel="noopener" style="animation-delay:${0.05 + i * 0.06}s">
+      <div class="card-top">
+        <span class="card-num ${numClass}">${String(i+1).padStart(2,'0')}</span>
+        <span class="card-title">${escHtml(a.title || '')}</span>
+      </div>
+      <div class="card-body">${escHtml(a.summary || '')}</div>
+      <div class="card-footer">
+        <span class="card-source">${escHtml(a.source || '')}</span>
+        <span class="card-tag ${tagClass}">${escHtml(a.tag || '')}</span>
+      </div>
+    </a>`;
+  }).join('');
+
+  hintEl.style.display = 'block';
+}
+
+function renderError(type, msg) {
+  const listEl = document.getElementById('list-' + type);
+  listEl.innerHTML = `
+  <div style="display:flex;flex-direction:column;align-items:center;gap:16px;padding:60px 20px;text-align:center">
+    <div style="font-size:36px">⚠️</div>
+    <div style="font-size:13px;color:var(--text-secondary);line-height:1.6">뉴스를 불러오지 못했어요.<br/>${escHtml(msg)}</div>
+    <button onclick="retryFetch('${type}')" style="padding:10px 24px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;color:var(--text-primary);font-family:'Noto Sans KR',sans-serif;font-size:13px;cursor:pointer">다시 시도</button>
+  </div>`;
+}
+
+function retryFetch(type) {
+  document.getElementById('list-' + type).innerHTML = getLoadingHTML(type);
+  fetchNews(type);
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── INIT ──
+setDate();
+fetchNews('dev');
+</script>
+
+</body>
+</html>
